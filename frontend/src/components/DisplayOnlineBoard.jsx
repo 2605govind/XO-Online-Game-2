@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useReducer, useState } from "react"
 import socket from "../utils/socket.js";
 import { useOnlineGameStore } from "../store/useOnlineGameStore.js";
 
@@ -62,11 +62,10 @@ export default function DisplayOnlineBoard({whichPlayer}) {
             setGameOver(true);
             
             increaseWinPoint(player);
-            
-            queueX = [];
-            queueO = [];
 
-            sendBoardData(Array(9).fill(''), player);
+            // console.log("x", winScoreX, "O", winScoreO);
+             
+            sendBoardData(copyBoard, player, true);
             return;
 
         }
@@ -95,6 +94,7 @@ export default function DisplayOnlineBoard({whichPlayer}) {
 
         const newplayer = nowPlayer == 'X' ? 'O' : 'X'
         
+
         sendBoardData(copyBoard, newplayer);
 
         setNowPlayer(newplayer);
@@ -109,17 +109,17 @@ export default function DisplayOnlineBoard({whichPlayer}) {
     }
 
 
-    const sendBoardData = (copyBoard, newplayer) => {
+    const sendBoardData = (copyBoard, newplayer, gameover=false) => {
         const obj = {
             opponentSocketId,
             userSoketId,
             nowPlayer: newplayer,
             boardValues: copyBoard,
-
+            gameover: gameover,
             queueX,
             queueO,
             winScoreX,
-            winScoreO
+            winScoreO 
         }
 
         // send to opponent
@@ -128,29 +128,50 @@ export default function DisplayOnlineBoard({whichPlayer}) {
   
     const receiverMessage = (data) => {
         // console.log("recie", data?.boardValues, data?.nowPlayer);
-        setNowPlayer(data?.nowPlayer);
-        setBoard(data?.boardValues)
+        if (checkWinner(data?.boardValues, data?.nowPlayer)) {
+            setGameOver(true);
+        }
 
+        setBoard(data?.boardValues)
+        
         queueO = data?.queueO;
         queueX = data?.queueX;
-  
-        setWinScoreO(data?.winScoreO);
-        setWinScoreX(data?.winScoreX);
 
 
-        // console.log("received data", data?.boardValues);
+        setWinScoreO(data?.winScoreO)
+        setWinScoreX(data?.winScoreX)
+        
+        setNowPlayer(data?.nowPlayer);
+
+        setGameOver(data?.gameover);
+        
+
+        // console.log("received data", data);
     }
 
 
     function handleClickResetGame(){
-        queueX = [];
-        queueO = [];
-        setBoard(Array(9).fill(''));
-        setGameOver(false);
+      queueX = [];
+      queueO = [];
+      setBoard(Array(9).fill(''));
+      setGameOver(false);
+      
+      
+      // now send response
+      if(whichPlayer !== nowPlayer) {
+        increaseWinPoint(nowPlayer);
+        return;
+      }
 
-        // now send response
+      sendBoardData(Array(9).fill(''), nowPlayer);
     }
 
+
+    useEffect(() => {
+      if(whichPlayer !== nowPlayer) {
+        sendBoardData(Array(9).fill(''), nowPlayer);
+      }
+    }, [winScoreO, winScoreX])
 
     return (
   <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-[#001f3f] to-[#003f7f] px-4 py-8">
@@ -158,7 +179,7 @@ export default function DisplayOnlineBoard({whichPlayer}) {
 
       {/* Opponent Name */}
       <div className="text-lg text-center sm:text-2xl w-full mb-5 px-4 text-blue-400">
-        {opponentName.charAt(0).toUpperCase() + opponentName.slice(1)}
+        {whichPlayer === 'X' ? opponentName.charAt(0).toUpperCase() + opponentName.slice(1) : userName.charAt(0).toUpperCase() + userName.slice(1)}
       </div>
 
       {/* Top Score Row */}
@@ -191,7 +212,7 @@ export default function DisplayOnlineBoard({whichPlayer}) {
 
       {/* Username */}
       <div className="text-lg text-center sm:text-2xl w-full mt-4 px-4 text-red-400">
-        {userName.charAt(0).toUpperCase() + userName.slice(1)}
+        {whichPlayer === 'X' ? userName.charAt(0).toUpperCase() + userName.slice(1) : opponentName.charAt(0).toUpperCase() + opponentName.slice(1)}
       </div>
     </div>
 
