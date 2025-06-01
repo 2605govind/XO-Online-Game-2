@@ -99,7 +99,11 @@ export const useOnlineGameStore = create((set, get) => ({
 
     getConnectionWithOpponentURL: () => {
         const { userSoketId, userName } = get();
-        const url = `http://localhost:5173/useronlineground/${userSoketId}/${userName}`
+
+        const currentModuleURL = new URL(import.meta.url);
+        // console.log(currentModuleURL.origin); // e.g., "http://localhost:5173"
+        
+        const url = `${currentModuleURL.origin}/useronlineground/${userSoketId}/${userName}`
         set({ connectionURL: url });
     },
 
