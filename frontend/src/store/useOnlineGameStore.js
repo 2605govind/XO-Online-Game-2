@@ -152,7 +152,6 @@ export const useOnlineGameStore = create((set, get) => ({
 
 
             socket.on('playground-reset', (gameSrt) => {
-                console.log("hwllo");
                 navigate('/');
                 get().boardValueReset();
             })
@@ -192,7 +191,7 @@ export const useOnlineGameStore = create((set, get) => ({
             })      
             
             socket.off('playground-reset', (gameSrt) => {
-                console.log("hwllo");
+                // console.log("hwllo");
                 navigate('/');
                 get().boardValueReset();
             })

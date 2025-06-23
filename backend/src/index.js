@@ -21,18 +21,16 @@ app.use(express.static(path.join(__dirname, '../../frontend/dist/')));
 // app.get('/*splat', (req, res) => {
     // });
     
-app.get('/', async (req, res) => {
-    console.log(path.join(__dirname, '../../frontend/dist/index.html'));
+app.get('/{*splat}', async (req, res) => {
+    // console.log(path.join(__dirname, '../../frontend/dist/index.html'));
 
 
     res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
 //   res.send('ok')
 })
 
-
-
 server.listen(process.env.PORT, () => {
-    console.log("server is running on ", process.env.PORT);
+    // console.log("server is running on ", process.env.PORT)
 })
 
 
