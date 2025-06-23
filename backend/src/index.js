@@ -6,10 +6,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
+  origin: true, // dynamically reflects the request origin
+  credentials: true,
 }))
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
