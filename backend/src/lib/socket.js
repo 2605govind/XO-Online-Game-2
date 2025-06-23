@@ -11,41 +11,74 @@ const io = new Server(server, {
     }
 })
 
-export const socketIdsOfOpponentUserMap = {};
+
+
+export const roomidsWithUsers = {};
 
 io.on('connection', (socket) => {
-    // console.log("new user connected ", socket.id);
+    //  console.log("connected ", socket.id);
 
-    // handle playground out
-    socket.on('playground-disconnected', ({ opponentId }) => {
-        io.to(opponentId).emit('playground-reset', false);
-    })
+    // Join a room
+    socket.on("joinRoom", async ({roomid, data}) => {
+        // {roomid: roomid, data:{name: name}
+
+        if(!roomidsWithUsers[roomid]) {
+            roomidsWithUsers[roomid] = [];
+        }
+
+        if(roomidsWithUsers[roomid].length < 2) {
+            socket.join(roomid);
+            
+            roomidsWithUsers[roomid].push({socketId: socket.id, name: data.name});
+
+            // 
+            if(roomidsWithUsers[roomid].length == 2) {
+                io.to(roomid).emit('start-game', {
+                    createrName: roomidsWithUsers[roomid][0].name,
+                    followerName: roomidsWithUsers[roomid][1].name
+                })
+            }
+            
+            
+        }
+        
+//         const socketsInRoom = await io.in(roomid).allSockets();
+// console.log("Sockets in room", roomid, ":", socketsInRoom);
+
+        // console.log("roomidsWithUsers", roomidsWithUsers)
 
 
-    socket.on('sender-message', (obj) => {
-        io.to(obj.opponentSocketId).emit('received-message', obj);
+        // console.log("joinRoom socket", socket.id);
+    });
+
+
+
+    socket.on("send-data", ({roomid, data}) => {
+        io.to(roomid).emit('new-data-save', data);
     })
 
 
     socket.on('disconnect', () => {
-        let sendId = socketIdsOfOpponentUserMap[socket.id];
+        // console.log("disconnected ", socket.id);
 
-        if(!sendId) {
-            for(let key in socketIdsOfOpponentUserMap){
-                if(socketIdsOfOpponentUserMap[key] == socket.id) {
-                    sendId = key;
-                    delete socketIdsOfOpponentUserMap[key];
+        for(let key in roomidsWithUsers) {
+            if(roomidsWithUsers[key].length == 2) {
+
+                if(roomidsWithUsers[key][0].socketId == socket.id) {
+                    socket.to(roomidsWithUsers[key][1].socketId).emit('playground-reset', true);
+
+                    delete roomidsWithUsers[key];
+                    return;
+                    
+                }
+                if(roomidsWithUsers[key][1].socketId == socket.id) {
+                    socket.to(roomidsWithUsers[key][0].socketId).emit('playground-reset', true);
+
+                    delete roomidsWithUsers[key];
+                    return;
                 }
             }
         }
-
-        
-        if(sendId) {
-            io.to(sendId).emit('playground-reset', false);
-            delete socketIdsOfOpponentUserMap[socket.id];
-        }
-
-        // console.log("disconnected ", socket.id);
     })
 })
 

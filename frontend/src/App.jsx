@@ -25,8 +25,9 @@ function App() {
         <Route path='/computelevel'  element={<ComputeLevelPage/>}/>
         <Route path='/computelevel/:levelid'  element={<ComputeBoardlPage/>}/>
 
+
         <Route path='/createronlineground'  element={<CreaterOnlinePage/>}/>
-        <Route path='/useronlineground/:id/:name'  element={<UserOnlinePage/>}/>
+        <Route path='/useronlineground/:roomid'  element={<UserOnlinePage/>}/>
       </Routes>
     </>
   )

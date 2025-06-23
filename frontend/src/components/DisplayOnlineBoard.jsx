@@ -1,201 +1,100 @@
-import { useEffect, useReducer, useState } from "react"
-import socket from "../utils/socket.js";
+import { useEffect } from "react"
 import { useOnlineGameStore } from "../store/useOnlineGameStore.js";
-
-import { checkWinner} from '../utils/gameloader.js';
-
-
-let queueX = [];
-let queueO = [];
+import { useNavigate } from "react-router";
 
 export default function DisplayOnlineBoard({whichPlayer}) {
-    const {opponentSocketId, userSoketId, opponentName, userName} = useOnlineGameStore();
+  const navigate = useNavigate();
+  const {nowPlayer, winScoreO, winScoreX,board, insertMove, gameOver, handleClickResetGame , createrName, follwerName, boardValueReset,  queueX, queueO,} = useOnlineGameStore();
 
-    const [board, setBoard] = useState([]);
-    const [nowPlayer, setNowPlayer] = useState('X');
-    const [winScoreX, setWinScoreX] = useState(0);
-    const [winScoreO, setWinScoreO] = useState(0);
-    const [gameOver, setGameOver] = useState(false);
+  useEffect(() => {
+      boardValueReset()
+  }, [])
 
-
-
-    useEffect(() => {
-        setBoard(Array(9).fill(''));
-        setNowPlayer('X')
-        queueX = [];
-        queueO = [];
-        setWinScoreX(0);
-        setWinScoreO(0);
-        setGameOver(false);
-    }, [])
-
-
-
-    // message receiver
-    useEffect(() => {
-        socket.on('received-message', receiverMessage);
-        return () => {
-            socket.off('received-message', receiverMessage);
-        };
-    }, [])
-
-    
-    function increaseWinPoint(player) {
-        if (player == 'X') {
-            setWinScoreX((s) => s + 1);
-        } else {
-            setWinScoreO((s) => s + 1);
-        }
-    }
-    
-    function insertMove(index, player) {
-
-        const copyBoard = [...board];
-        copyBoard[index] = player;
-        
-        if (checkWinner(copyBoard, player)) {
-            
-            
-            // win player play first
-            setNowPlayer(player);
-            
-            setGameOver(true);
-            
-            increaseWinPoint(player);
-
-            // console.log("x", winScoreX, "O", winScoreO);
-             
-            sendBoardData(copyBoard, player, true);
-            return;
-
-        }
-    
-        
-        if (player == 'X') {
-            queueX.push(index);
-        
-            if (queueX.length == 4) {
-                copyBoard[queueX[0]] = '';
-                queueX.shift();
-            }
-        } else {
-            queueO.push(index);
-            
-            if (queueO.length == 4) {
-                copyBoard[queueO[0]] = '';
-                queueO.shift();
-            }
-        }
-        
-        // console.log("queueX ", queueX)
-        // console.log("queueO ", queueO)
-        // console.log("player", player, index);
-        // console.log("data", copyBoard);
-
-        const newplayer = nowPlayer == 'X' ? 'O' : 'X'
-        
-
-        sendBoardData(copyBoard, newplayer);
-
-        setNowPlayer(newplayer);
-        setBoard(copyBoard);
-    }
-
-
-    function handleInput(index) {
-        if(board[index] != '' || whichPlayer != nowPlayer) return;
-
-        insertMove(index, nowPlayer);
-    }
-
-
-    const sendBoardData = (copyBoard, newplayer, gameover=false) => {
-        const obj = {
-            opponentSocketId,
-            userSoketId,
-            nowPlayer: newplayer,
-            boardValues: copyBoard,
-            gameover: gameover,
-            queueX,
-            queueO,
-            winScoreX,
-            winScoreO 
-        }
-
-        // send to opponent
-        socket.emit('sender-message', obj);
-    }
   
-    const receiverMessage = (data) => {
-        // console.log("recie", data?.boardValues, data?.nowPlayer);
-        if (checkWinner(data?.boardValues, data?.nowPlayer)) {
-            setGameOver(true);
-        }
-
-        setBoard(data?.boardValues)
-        
-        queueO = data?.queueO;
-        queueX = data?.queueX;
+  function handleInput(index) {
+      if(board[index] != '' || whichPlayer != nowPlayer) return;
+      insertMove(index, nowPlayer);
+  }
 
 
-        setWinScoreO(data?.winScoreO)
-        setWinScoreX(data?.winScoreX)
-        
-        setNowPlayer(data?.nowPlayer);
+  function colorOfPieceTimeLine(queue, player, index) {
+    let color ='';
+    if(player === 'X') {
+      color = ['text-red-500', 'text-red-600', 'text-red-700'];
 
-        setGameOver(data?.gameover);
-        
-
-        // console.log("received data", data);
+    }else{
+      color = ['text-blue-500', 'text-blue-600', 'text-blue-700'];
     }
 
-
-    function handleClickResetGame(){
-      queueX = [];
-      queueO = [];
-      setBoard(Array(9).fill(''));
-      setGameOver(false);
-      
-      
-      // now send response
-      if(whichPlayer !== nowPlayer) {
-        increaseWinPoint(nowPlayer);
-        return;
+    let k = 3;
+      for(let i = queue.length-1; i >= 0; i--) {
+        k--;
+        if(queue[i] == index) {
+          return color[k];
+        } 
       }
 
-      sendBoardData(Array(9).fill(''), nowPlayer);
-    }
+      return 'text-white'
+  }
 
+  function hanldeCloseClicked(){
+    navigate('/');
+  }
+  
 
-    useEffect(() => {
-      if(whichPlayer !== nowPlayer) {
-        sendBoardData(Array(9).fill(''), nowPlayer);
-      }
-    }, [winScoreO, winScoreX])
+  if(createrName === '' && follwerName === '') {
+        return  (
+          <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-12 h-12 border-4 border-white border-dashed rounded-full animate-spin"></div>
+              <p className="text-lg font-semibold">Loading, please wait...</p>
+            </div>
+          </div>
+        );
+  }
 
-    return (
-  <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-[#001f3f] to-[#003f7f] px-4 py-8">
+  return (
+  <div className="relative min-h-screen flex justify-center items-center bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364] px-4 py-8 select-none">
+    
+    {/* Close Button */}
+    <button
+      className="absolute top-4 right-4 text-gray-300 hover:text-white text-2xl font-bold transition"
+      onClick={() => hanldeCloseClicked()} // replace with your logic
+      aria-label="Close Game"
+    >
+      ✕
+    </button>
+
     <div className="text-white w-full max-w-md mx-auto flex flex-col items-center">
-
-      {/* Opponent Name */}
-      <div className="text-lg text-center sm:text-2xl w-full mb-5 px-4 text-blue-400">
-        {whichPlayer === 'X' ? opponentName.charAt(0).toUpperCase() + opponentName.slice(1) : userName.charAt(0).toUpperCase() + userName.slice(1)}
+      
+      {/* Turn Indicator */}
+      <div className="text-lg text-center sm:text-2xl w-full mb-8 px-4 text-gray-200 font-medium">
+        {nowPlayer}'s Turn
       </div>
 
       {/* Top Score Row */}
-      <div className="flex justify-between items-center text-xl sm:text-2xl w-full mb-4 max-w-sm ">
-        <div className="text-lg">Wins: {winScoreO}</div>
-        <div className={`${nowPlayer === 'O' ? "text-blue-400 font-bold" : "text-white"}`}>O</div>
+      <div className={`flex justify-between items-center text-lg sm:text-xl w-full mb-4 max-w-sm font-medium ${whichPlayer === 'X' ? 'text-blue-600' : 'text-red-600'} font-bold`}>
+        <div className="text-gray-100">
+          Wins: {whichPlayer === 'X' ? winScoreO : winScoreX}
+        </div>
+        <div className="flex items-center">
+          <span className="pr-2 text-gray-100">
+            {whichPlayer === 'X' ? follwerName : createrName}
+          </span>
+          <span className={`text-5xl ${nowPlayer === (whichPlayer === 'X' ? 'O' : 'X') ? 'player-active' : ''}`}>
+            {whichPlayer === 'X' ? 'O' : 'X'}
+          </span>
+        </div>
       </div>
 
       {/* Game Board */}
-      <div className="grid grid-cols-3 gap-3 bg-white/10 backdrop-blur-md p-4 rounded-xl shadow-lg w-full max-w-sm aspect-square">
+      <div className="grid grid-cols-3 gap-3 bg-[#1e1e1e] p-5 rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.5)] w-full max-w-sm aspect-square border border-[#555]">
         {board?.map((item, index) => (
           <button
             key={index}
             onClick={() => handleInput(index)}
-            className={`aspect-square flex justify-center items-center text-5xl sm:text-6xl font-extrabold cursor-pointer border border-white/30 bg-white/20 rounded-lg hover:bg-white/30 transition
-              ${item === 'X' ? 'text-red-400' : item === 'O' ? 'text-blue-400' : 'text-white'}
+            className={`aspect-square flex justify-center items-center text-5xl sm:text-6xl font-bold cursor-pointer border border-[#555] rounded-lg hover:bg-[#333] transition
+              ${item === 'X' ? colorOfPieceTimeLine(queueX, item, index) : item === 'O' ? colorOfPieceTimeLine(queueO, item, index) : 'text-white'}
             `}
             aria-label={`Cell ${index + 1}`}
           >
@@ -205,21 +104,25 @@ export default function DisplayOnlineBoard({whichPlayer}) {
       </div>
 
       {/* Bottom Score Row */}
-      <div className="flex justify-between items-center text-xl sm:text-2xl w-full mt-4 max-w-sm ">
-        <div className={`${nowPlayer === 'X' ? "text-red-400 font-bold" : "text-white"}`}>X</div>
-        <div className="text-lg">Wins: {winScoreX}</div>
-      </div>
-
-      {/* Username */}
-      <div className="text-lg text-center sm:text-2xl w-full mt-4 px-4 text-red-400">
-        {whichPlayer === 'X' ? userName.charAt(0).toUpperCase() + userName.slice(1) : opponentName.charAt(0).toUpperCase() + opponentName.slice(1)}
+      <div className={`flex justify-between items-center text-lg sm:text-xl w-full mt-4 max-w-sm font-medium ${whichPlayer === 'X' ? 'text-red-600' : 'text-blue-600'} font-bold`}>
+        <div className="flex items-center">
+          <span className={`text-5xl ${nowPlayer === (whichPlayer === 'X' ? 'X' : 'O') ? 'player-active' : ''}`}>
+            {whichPlayer === 'X' ? 'X' : 'O'}
+          </span>
+          <span className="pl-2 text-gray-100">
+            {whichPlayer === 'X' ? createrName : follwerName}
+          </span>
+        </div>
+        <div className="text-gray-100">
+          Wins: {whichPlayer === 'X' ? winScoreX : winScoreO}
+        </div>
       </div>
     </div>
 
-    {/* Overlay on Game Over */}
+    {/* Game Over Modal */}
     {gameOver && (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 flex justify-center items-center px-4">
-        <div className="bg-white/10 text-white text-3xl rounded-xl shadow-xl p-8 max-w-sm w-full text-center space-y-6">
+        <div className="bg-[#1e1e1e] text-white text-3xl rounded-xl shadow-xl p-8 max-w-sm w-full text-center space-y-6 border border-[#444]">
           <p className="font-semibold">{nowPlayer} Won!</p>
           <button
             onClick={handleClickResetGame}

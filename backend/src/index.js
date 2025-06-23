@@ -1,23 +1,38 @@
 import express from 'express';
 import 'dotenv/config'
 import cors from 'cors'
-import connectRouter from './Routes/connectionRoutes.js';
 import {app, server} from './lib/socket.js'
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true,
 }))
 
-app.use(express.json());
-app.use("/connect", connectRouter)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-app.use('/', (req, res) => {
-    res.send("Hello Word");
+// Serve static files
+
+
+app.use(express.static(path.join(__dirname, '../../frontend/dist/')));
+
+// app.get('/*splat', (req, res) => {
+    // });
+    
+app.get('/', async (req, res) => {
+    console.log(path.join(__dirname, '../../frontend/dist/index.html'));
+
+
+    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+//   res.send('ok')
 })
 
+
+
 server.listen(process.env.PORT, () => {
-    console.log("server is running on ", process.env.PORT)
+    console.log("server is running on ", process.env.PORT);
 })
 
 

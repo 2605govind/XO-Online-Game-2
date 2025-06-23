@@ -1,40 +1,40 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router"
 import { useOnlineGameStore } from "../store/useOnlineGameStore";
+import socket from "../utils/socket";
+import OnlineGetName from "../components/OnlineGetName";
 import DisplayOnlineBoard from "../components/DisplayOnlineBoard";
-import GetUserInforComponent from "../components/GetUserInforComponent";
 
 export default function UserOnlinePage() {
-    const { makePlayGround, userConnectToCreater, destroyPlayGround, connectionLoading, opponentSocketId, opponentName, gameStart, userSoketId, userName } = useOnlineGameStore();
-    const { id, name } = useParams();
-    const [playGame, setPlayGame] = useState(false);
+    const {playGame, makePlayGround, destroyPlayGround, setRoomId} = useOnlineGameStore();
 
+    const { roomid } = useParams();
+    const [name, setName] = useState('');
+
+    
     // initialize user info
     useEffect(() => {
         makePlayGround();
         return destroyPlayGround;
     }, [])
 
-    // creating connection with creater 
-    useEffect(() => {
-        userConnectToCreater(id, name);
-    }, [connectionLoading])
 
     useEffect(() => {
-
-        if (!connectionLoading && opponentSocketId && opponentName && gameStart && userSoketId && userName) {
-            setPlayGame(true);
+        if(name !== '') {
+            socket.emit('joinRoom', {roomid: roomid, data:{name: name}});
+            setRoomId(roomid);
         }
-
-    }, [connectionLoading, opponentSocketId, opponentName, gameStart, userSoketId, userName])
+    }, [name]);
 
 
     return (
         <div>
-            {!playGame && <GetUserInforComponent />}
+            {
+                !playGame && (name.length == 0 && <OnlineGetName setName={setName} whichPlayer="O"/>)
+            }
 
             {
-                playGame && <DisplayOnlineBoard whichPlayer="O" />
+                playGame && <DisplayOnlineBoard whichPlayer="O"/>
             }
 
         </div>

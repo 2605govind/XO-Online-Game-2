@@ -2,46 +2,52 @@ import { useEffect, useState } from "react"
 import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import DisplayOnlineBoard from "../components/DisplayOnlineBoard";
 import socket from "../utils/socket";
-import GetCreaterInforComponent from "../components/GetCreaterInforComponent";
+import OnlineShowURL from "../components/OnlineShowURL";
+import OnlineGetName from "../components/OnlineGetName";
+
 
 
 export default function CreaterOnlinePage() {
-    const { makePlayGround, connectionURL, getConnectionWithOpponentURL, destroyPlayGround, connectionLoading, opponentSocketId, opponentName, gameStart, userSoketId, userName, socketHandleOpponentRespons } = useOnlineGameStore();
+    const {makePlayGround, destroyPlayGround, playGame, setRoomId} = useOnlineGameStore();
 
-    const [playGame, setPlayGame] = useState(false);
-    // initialize creater socketid
+    const [name, setName] = useState('');
+    const [jointURL, setJointURL] = useState('');
+
     useEffect(() => {
         makePlayGround();
+
         return destroyPlayGround;
     }, [])
 
 
-    // handling opponent response using socket
     useEffect(() => {
-        socket.on('hand-shake', socketHandleOpponentRespons)
+        if(name !== '' && jointURL === '') {
+            const roomid = String(Date.now());
+            socket.emit('joinRoom', {roomid: roomid, data:{name: name}});
+            setRoomId(roomid);
 
-        return () => {
-            socket.off('hand-shake', socketHandleOpponentRespons)
+            const url = createURLwithRoomId(roomid)
+            setJointURL(url);
         }
-    }, [])
+    }, [name])
 
 
-    useEffect(() => {
+    // creating connection url
+    function createURLwithRoomId(id){
+        const currentModuleURL = new URL(import.meta.url); //console.log(currentModuleURL.origin); // e.g., "http://localhost:5173"
+        return `${currentModuleURL.origin}/useronlineground/${id}`;
+    }
 
-        if(!connectionLoading && opponentSocketId && opponentName && gameStart && userSoketId && userName)  {
-            setPlayGame(true);
-        }
-
-    }, [connectionLoading , opponentSocketId , opponentName , gameStart , userSoketId , userName])
-
+    
     return (
         <div>
-            {!playGame && <GetCreaterInforComponent/>} 
+            {
+                !playGame && (name.length == 0 && <OnlineGetName setName={setName} whichPlayer="X"/> || name.length >= 1 && <OnlineShowURL url={jointURL}/>)
+            }
 
             {
                 playGame && <DisplayOnlineBoard whichPlayer="X"/>
             }
-
         </div>
     )
 }

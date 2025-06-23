@@ -1,6 +1,4 @@
-
 let navigationFun;
-
 export const setNavigator = (navFun) => {
     navigationFun = navFun;
 }

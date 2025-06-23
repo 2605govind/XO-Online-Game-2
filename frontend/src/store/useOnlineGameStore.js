@@ -1,37 +1,118 @@
 import { create } from 'zustand'
 import socket from '../utils/socket';
-import axiosClient from '../utils/axiosClient';
-import { navigate } from '../hook/useNavigate';
+import {checkWinner} from '../utils/gameloader.js'
+import {navigate} from '../hook/useNavigate.js'
 
 export const useOnlineGameStore = create((set, get) => ({
-    userSoketId: null,
-    userName: 'player',
+    playGame: false,
 
-    opponentSocketId: null,
-    opponentName: '',
-
-    connectionLoading: false,
-    connectionURL: '',
-
-    gameStart: false,
-
-    playerWaiting: false, 
+    roomid: null,
+    createrName: "",
+    follwerName: "",
 
 
-    socketHandleOpponentRespons: (data) => {
-        // already game running
-        if (get().opponentSocketId) {
+    board: Array(9).fill(''),
+    nowPlayer: 'X',
+    queueX: [],
+    queueO: [],
+    winScoreX: 0,
+    winScoreO: 0,
+    gameOver: false,
+
+
+    boardValueReset: () => {
+        set({board: Array(9).fill(''),
+            nowPlayer: 'X',
+            queueX: [],
+            queueO: [],
+            winScoreX: 0,
+            winScoreO: 0,
+            gameOver: false,
+
+          });
+    },
+
+    sendDataToSocketRoom: (board, nowPlayer, queueX, queueO, winScoreX, winScoreO, gameOver) => {
+        const {roomid} = get();
+        socket.emit('send-data', {roomid, data: {
+            board, nowPlayer, queueX, queueO, winScoreX, winScoreO, gameOver,
+        }})
+    },
+
+    insertMove: (index, player) => {
+        const copyBoard = [...get().board];
+        copyBoard[index] = player;
+        
+        if (checkWinner(copyBoard, player)) {
+
+            let copyWinScoreX = get().winScoreX;
+            let copyWinScoreO = get().winScoreO;
+
+
+            // win player play first
+            if (player == 'X') {
+                copyWinScoreX = copyWinScoreX + 1;
+                set({winScoreX: copyWinScoreX})
+            } else {
+                copyWinScoreO = copyWinScoreO + 1;
+                set({winScoreO: copyWinScoreO})
+            }
+
+            set({nowPlayer: player, gameOver: true});        
+
+            // send data
+            const {queueX, queueO} = get();
+            get().sendDataToSocketRoom(copyBoard, player, queueX, queueO, copyWinScoreX, copyWinScoreO, true);
+
             return;
         }
+    
+        const copyqueueX = [...get().queueX];
+        const copyqueueO = [...get().queueO];
 
-        //  {opponentName, opponentId});
-        set({ opponentSocketId: data.opponentId, opponentName: data.opponentName });
-        set({ gameStart: true });
+        if (player == 'X') {
+            copyqueueX.push(index);
+        
+            if (copyqueueX.length == 4) {
+                copyBoard[copyqueueX[0]] = '';
+                copyqueueX.shift();
+            }
+
+            set({queueX: copyqueueX});
+            
+        } else {
+            
+            
+            copyqueueO.push(index);
+            
+            if (copyqueueO.length == 4) {
+                copyBoard[copyqueueO[0]] = '';
+                copyqueueO.shift();
+            }
+
+            set({queueO: copyqueueO});
+        }
+        
+
+        const newplayer = (player == 'X') ? 'O' : 'X'
+        
+        set({nowPlayer: newplayer, board: copyBoard})
+
+
+        // send
+        const {winScoreX, winScoreO, gameOver} = get();
+        get().sendDataToSocketRoom(copyBoard, newplayer, copyqueueX, copyqueueO, winScoreX, winScoreO, gameOver);
+    },
+
+
+    setRoomId: (roomid) => {
+        set({roomid: roomid});
     },
 
     makePlayGround: async () => {
         try {
-            set({ connectionLoading: true });
+
+            set({playGame: false});
 
             if (!socket.connected) {
                 socket.connect();
@@ -47,18 +128,34 @@ export const useOnlineGameStore = create((set, get) => ({
                     resolve();
                 } else {
                     socket.once('connect', handleConnect); // wait for connect
-
                 }
             });
 
-   
-            set({ userSoketId: socket.id });
 
-            socket.on('playground-reset', (gameSrt) => {
-                navigate('/');
-                get().gameValueReset();
+            socket.on('new-data-save', (data) => {
+                const {board, nowPlayer, queueX, queueO, winScoreX, winScoreO, gameOver} = data
+                set({
+                    board: board,
+                    nowPlayer: nowPlayer,
+                    queueX: queueX,
+                    queueO: queueO,
+                    winScoreX: winScoreX,
+                    winScoreO: winScoreO,
+                    gameOver: gameOver
+                })
             })
 
+
+            socket.on('start-game', (data) => {
+                set({createrName: data.createrName, follwerName: data.followerName, playGame: true});
+            })                
+
+
+            socket.on('playground-reset', (gameSrt) => {
+                console.log("hwllo");
+                navigate('/');
+                get().boardValueReset();
+            })
 
         } catch (error) {
             console.log("error at makeplayground ", error);
@@ -69,25 +166,35 @@ export const useOnlineGameStore = create((set, get) => ({
         try {
             await new Promise((resolve) => {
                 if (socket.connected) {
-
-                    if(get().opponentSocketId){
-                        socket.emit('playground-disconnected', {opponentId: get().opponentSocketId});
-                    }
-
-                    get().gameValueReset(); // reset all value
-
                     socket.disconnect();
                     resolve();
                 } else {
                     resolve();
                 }
             });
-            // console.log('disconnect')
 
-            // send to opponent for disconnected
+
+            socket.off('start-game', (data) => {
+                set({createrName: data.createrName, follwerName: data.followerName, playGame: true});
+            })   
+
+            socket.off('new-data-save', (data) => {
+                const {board, nowPlayer, queueX, queueO, winScoreX, winScoreO, gameOver} = data
+                set({
+                    board: board,
+                    nowPlayer: nowPlayer,
+                    queueX: queueX,
+                    queueO: queueO,
+                    winScoreX: winScoreX,
+                    winScoreO: winScoreO,
+                    gameOver: gameOver
+                })
+            })      
+            
             socket.off('playground-reset', (gameSrt) => {
+                console.log("hwllo");
                 navigate('/');
-                get().gameValueReset();
+                get().boardValueReset();
             })
 
 
@@ -97,52 +204,8 @@ export const useOnlineGameStore = create((set, get) => ({
 
     },
 
-    getConnectionWithOpponentURL: () => {
-        const { userSoketId, userName } = get();
 
-        const currentModuleURL = new URL(import.meta.url);
-        // console.log(currentModuleURL.origin); // e.g., "http://localhost:5173"
-        
-        const url = `${currentModuleURL.origin}/useronlineground/${userSoketId}/${userName}`
-        set({ connectionURL: url });
-    },
-
-    hundleName: (e,name) => {
-        e.preventDefault();
-
-        if(name == '') return;
-
-        if(name.length > 16) {
-            alert('Please Enter Small Name')
-            return;
-        }
-
-        set({userName: name, connectionLoading: false})
-    },
-    
-
-    gameValueReset: () => {
-        set({ userSoketId: null, userName: 'player', connectionURL: '', opponentSocketId: null, opponentName: '', connectionLoading: false, gameStart: false });
-    },
-
-    // opponent function
-    userConnectToCreater: async (id, name) => {
-        try {
-            const message = {
-                userId: get().userSoketId,
-                userName: get().userName,
-                createrId: id,
-            }
-
-            set({ opponentSocketId: id, opponentName: name });
-
-            // gameStart
-            const res = await axiosClient.post('/connect/connecttocreter', message);
-
-            set({ gameStart: res.data.gameStart });
-
-        } catch (error) {
-            console.log("error at userConnectToCreater, ", error);
-        }
-    },
+    handleClickResetGame: () => {
+        get().sendDataToSocketRoom(Array(9).fill(''), get().nowPlayer, [], [], get().winScoreX, get().winScoreO, false);
+    }
 }))
