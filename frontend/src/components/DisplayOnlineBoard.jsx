@@ -19,11 +19,11 @@ export default function DisplayOnlineBoard({whichPlayer}) {
 
   function colorOfPieceTimeLine(queue, player, index) {
     let color ='';
-    if(player === 'X') {
-      color = ['text-red-500', 'text-red-600', 'text-red-700'];
+    if (player === 'X') {
+      color = ['text-red-400', 'text-red-600', 'text-red-700'];
 
-    }else{
-      color = ['text-blue-500', 'text-blue-600', 'text-blue-700'];
+    } else {
+      color = ['text-blue-400', 'text-blue-600', 'text-blue-700'];
     }
 
     let k = 3;
